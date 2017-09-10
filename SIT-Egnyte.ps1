@@ -8,9 +8,9 @@ Egnyte is kinda maybe not currently in use.
 #>
 
 function Send-EgnyteAuthRequest {
-    $APIKey = "y9x8hp7wtzeapd85tydf3cxz"
-    $Username = "bearsgoroar"
-    $Password = "UK0&@51bJJ()"
+    $APIKey = ""
+    $Username = ""
+    $Password = ""
 
     $BaseURL = "https://bearsgoroar.egnyte.com/puboauth/token?client_id=$APIKey&username=$Username&password=$Password&grant_type=password"
 
