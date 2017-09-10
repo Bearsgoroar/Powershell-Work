@@ -5,6 +5,9 @@
                   |_|    |_|                    
 #>
 
+## https://services.github.com/on-demand/downloads/github-git-cheat-sheet/
+
+
 #$users = Import-Csv C:\PSScripts\swisspers.csv
 #$users | ForEach-Object { 
 #    $UPN = ($_.FirstName[0] + ($_.LastName -replace " ", "") + "@swisspers.onmicrosoft.com")
