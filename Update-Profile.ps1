@@ -1,3 +1,3 @@
 function Update-Profile {
-	&notepad.exe "$PsHome\Profile.ps1"
+	Start-Vim -Name "$PsHome\Profile.ps1"
 }
