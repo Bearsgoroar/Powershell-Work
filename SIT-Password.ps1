@@ -20,7 +20,6 @@ function Get-SimplePassword {
 }
 
 
-
 <###############################################################################
     Phasing the below stuff out in favour of KeePass
 ###############################################################################>
@@ -31,19 +30,13 @@ function Get-TenantInformation() {
         [Parameter(Mandatory=$True)][string]$Tenant
     )
 
-    $Data = Get-Content -Path "C:\PSScripts\Tenants.txt"
+    $Data = Get-KeePassEntry -AsPlainText -DatabaseProfileName work -KeePassEntryGroupPath work/o365 
 
     foreach($Row in $Data) {
         ## Searching txt file for the Tenant
-        if($Row -match $Tenant) {
-            ## Basic encryption of tenant data. Only works on the PC that encrypted
-            $SecureKey = $Row -replace ".*com=", "" | ConvertTo-SecureString
-            $BSTR = [System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($SecureKey)
-            $Data = [System.Runtime.InteropServices.Marshal]::PtrToStringAuto($BSTR)
-            
-            ## Removing any of the markers I use to make extracting the info easy
-            $Username = $Data -replace "-------.*", ""
-            $Password = $Data -replace ".*-------", ""
+        if($Row.Title -match $Tenant) {
+            $Username = $Row.UserName
+            $Password = $Row.Password
         }
     }
 

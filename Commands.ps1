@@ -19,20 +19,22 @@ Create-UPNList
 Reset-Password -Type O365
 #>
 
+
 ## Does as it says
 Function Reset-Password {
     param(
-        [Parameter(Mandatory=$True)][string][ValidateSet("AD", "O365", "Exchange", "Egnyte", "NAS")]$Type,
         [Parameter(Mandatory=$False)][string]$Password = (Get-SimplePassword),
         [Parameter(Mandatory=$False)][switch]$ForceChangePassword
-    )
+    ) 
+    
+    #[Parameter(Mandatory=$True)][string][ValidateSet("AD", "O365", "Exchange", "Egnyte", "NAS")]$Type,
 
     ## Pulls data from the UPNList created via Create-UPNList
     DynamicParam {
         ## DynamicParam from https://stackoverflow.com/questions/30111408/powershell-multiple-parameters-for-a-tabexpansion-argumentcompleter
 
         ## UPN Directory
-        $UPNList = "C:\PSScripts\UPNList.txt"
+        $UPNList = "C:\SITPOSH\UPNList.txt"
         if(!(Test-Path $UPNList)) { 
             Write-Error -Message "UPNList not found. Attempting to create list at default destination"
             Create-UPNList
@@ -85,6 +87,7 @@ Function Reset-Password {
     }
 
     process {
+        $Type = "O365"
         Switch($Type) {
             O365 {
                 ## Uses the login details from Get-TenantInformation to login to O365 (Get-MSOLOnline)
@@ -130,3 +133,79 @@ Function Reset-Password {
         }
     }
 }
+
+
+## Does as it says
+Function Add-MailboxDelegate {
+    param(
+        [Parameter(Mandatory=$False)][switch]$Placeholder
+    ) 
+    
+    ## Pulls data from the UPNList created via Create-UPNList
+    DynamicParam {
+        ## DynamicParam from https://stackoverflow.com/questions/30111408/powershell-multiple-parameters-for-a-tabexpansion-argumentcompleter
+
+        ## UPN Directory
+        $UPNList = "C:\SITPOSH\UPNList.txt"
+        if(!(Test-Path $UPNList)) { 
+            Write-Error -Message "UPNList not found. Attempting to create list at default destination"
+            Create-UPNList
+        }
+        
+        $ParamNames = @('UPN', 'GrantTo')
+
+        #Create Param Dictionary
+        $ParamDictionary = new-object -Type System.Management.Automation.RuntimeDefinedParameterDictionary
+
+        ForEach($Name in $ParamNames){
+            #Create a container for the new parameter's various attributes, like Manditory, HelpMessage, etc that usually goes in the [Parameter()] part
+            $ParamAttribCollecton = new-object -Type System.Collections.ObjectModel.Collection[System.Attribute]
+
+            #Create each attribute
+            $ParamAttrib = new-object System.Management.Automation.ParameterAttribute
+            $ParamAttrib.Mandatory = $True
+
+            #Create ValidationSet to make tab-complete work
+            $arrSet = Get-Content -Path $UPNList
+            $ParamValSet = New-Object -type System.Management.Automation.ValidateSetAttribute($arrSet)
+
+            #Add attributes and validationset to the container
+            $ParamAttribCollecton.Add($ParamAttrib)
+            $ParamAttribCollecton.Add($ParamValSet)
+
+            #Create the actual parameter,  then add it to the Param Dictionary
+            $MyParam = new-object -Type System.Management.Automation.RuntimeDefinedParameter($Name, [String], $ParamAttribCollecton)
+            $ParamDictionary.Add($Name, $MyParam)
+        }
+
+        #Return the param dictionary so the function can add the parameters to itself
+        return $ParamDictionary
+    }
+
+    begin {
+        ## Setting UPN from dynparam
+        $UPN = $PsBoundParameters["UPN"]
+        $GrantTo = $PsBoundParameters['GrantTo']
+
+        ## Setting Tenant param if not supplied
+        if([string]::IsNullOrEmpty($Tenant)) { $Tenant = $UPN -replace ".*@", "" }
+
+        ## Getting Tenant login information
+        $LoginDetails = Get-TenantInformation -Tenant $Tenant
+    }
+
+    process {
+        ## Uses the login details from Get-TenantInformation to login to O365 (Get-MSOLOnline)
+        Connect-Office365 -Username $LoginDetails.Username -Password $LoginDetails.Password
+        
+        ## Adds Full Access
+        Add-MailboxPermission -Identity $UPN -User $GrantTo -AccessRights FullAccess
+        ## Adds Send As
+        Add-RecipientPermission -Identity $UPN -AccessRights SendAs -Trustee $GrantTo
+
+        Write-Host "  Success  " -ForegroundColor White -BackgroundColor Green -NoNewline 
+        Write-Host " $GrantTo can now access $UPN mailbox. Please allow upto 15 minutes for this change to take effect " -ForegroundColor White -BackgroundColor Black -NoNewline
+    }
+}
+
+

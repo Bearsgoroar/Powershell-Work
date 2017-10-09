@@ -10,11 +10,13 @@ function Connect-Office365 {
         [Parameter(Mandatory=$True)][string]$Username,
         [Parameter(Mandatory=$True)]$Password
     )
+
     ## Making sure our module is loaded
     Import-Module MsOnline -DisableNameChecking
 
+    ## Getting Tenant login information
     $Tenant = $Username -replace "^.*@", ""
-    
+
     ## I have a function to do this usually but for portablity purposes.. this'll work
     Write-Host "  Connect  " -ForegroundColor White -BackgroundColor DarkMagenta -NoNewline 
     Write-Host " $Tenant" -ForegroundColor White -BackgroundColor Black
@@ -23,7 +25,7 @@ function Connect-Office365 {
     ## Text and then back to an encrypted string... defeating the purpose really
     $Password =  $Password | ConvertTo-SecureString -AsPlainText -Force
     $Credentials = New-Object -typename System.Management.Automation.PSCredential($Username, $Password)
-    
+
     ## Importing our O365 commands into the current session if they haven't been already.
     ## Only needs to run once per powershell session
     if((Get-PSSession) -eq $False -or (Get-PSSession) -eq $Null) {
@@ -40,10 +42,16 @@ function Connect-Office365 {
         Write-Host " Imported O365 commands" -ForegroundColor White -BackgroundColor Black
 
         ## This is the bit that actually auths us with the specific O365 tenant
-        Connect-MsolService -Credential $Credentials -WarningAction SilentlyContinue
+        Write-Host "  Success  " -ForegroundColor White -BackgroundColor Green -NoNewline 
+        Write-Host " Connected to $Tenant" -ForegroundColor White -BackgroundColor Black
+        Connect-MsolService -Credential $Credentials
     }
 
-    else { Connect-MsolService -Credential $Credentials -WarningAction SilentlyContinue }
+    else { 
+        Write-Host "  Success  " -ForegroundColor White -BackgroundColor Green -NoNewline 
+        Write-Host " Connected to $Tenant" -ForegroundColor White -BackgroundColor Black
+        Connect-MsolService -Credential $Credentials
+    }
 }
 
 
@@ -51,20 +59,12 @@ function Connect-Office365 {
 ## for Reset-Passwords Dynamic Param (Tab-Complete)
 function Create-UPNList {
     param(
-        [Parameter(Mandatory=$False)][string]$Path = "C:\PSScripts\UPNList.txt"
+        [Parameter(Mandatory=$False)][string]$Path = "C:\SITPOSH\UPNList.txt"
     )
     
-    foreach($Item in (Get-Content -Path C:\PSScripts\Tenants.txt)) {
-        ## This is the core part of the Get-TenantInformation script
-        ## I was to lazy to fix up the actual function to allow me to do this
-        ## As it won't be used in the final version
-        $SecureKey = $Item -replace ".*com=", "" | ConvertTo-SecureString
-        $BSTR = [System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($SecureKey)
-        $Data = [System.Runtime.InteropServices.Marshal]::PtrToStringAuto($BSTR)
-        
-        ## Removing any of the markers I use to make extracting the info easy
-        $Username = $Data -replace "-------.*", ""
-        $Password = $Data -replace ".*-------", ""
+    foreach($Item in (Get-KeePassEntry -AsPlainText -DatabaseProfileName work -KeePassEntryGroupPath work/o365)) {
+        $Username = $Item.UserName
+        $Password = $Item.Password
         $Tenant = $Username -replace ".*@", ""
 
         ## Connecting to the tenant
@@ -81,3 +81,45 @@ function Create-UPNList {
 
 
 
+
+
+function Login-Office365 {
+    param(
+        [Parameter(Mandatory=$True)][Validateset(  "fwo.net.au",
+                                                    "myhomeimprovements.com.au",
+                                                    "bcm.com.au",
+                                                    "boaq.qld.gov.au",
+                                                    "bpeq.qld.gov.au",
+                                                    "carbon-media.com.au",
+                                                    "comtech-industries.com",
+                                                    "eraenergy.com.au",
+                                                    "evolvegrp.com",
+                                                    "marcoengineering.com.au",
+                                                    "gbelectrics.com.au",
+                                                    "gpot.com.au",
+                                                    "hssaustralia.com",
+                                                    "hydrexia.com",
+                                                    "interfinancial.com.au",
+                                                    "kinnonandco.com.au",
+                                                    "kiahorganics.com.au",
+                                                    "qldleaders.com.au",
+                                                    "macarthurminerals.com",
+                                                    "mccqld.com",
+                                                    "mosaicproperty.com.au",
+                                                    "orocobre.com",
+                                                    "queenslandunions.org",
+                                                    "rohrig.com.au",
+                                                    "robinsaccountants.com.au",
+                                                    "rcp.net.au",
+                                                    "steelstorage.com.au",
+                                                    "sbru.com.au",
+                                                    "wqphn.com.au",
+                                                    "westernmeatexporters.com.au")]$Tenant
+    )
+
+    $LoginDetails = Get-TenantInformation -Tenant $Tenant
+
+    Get-PSSession | Remove-PSSession
+
+    Connect-Office365 -Username $LoginDetails.Username -Password $LoginDetails.Password
+}
